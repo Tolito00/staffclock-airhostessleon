@@ -1,3 +1,10 @@
+
+Gemini
+Pregunta sobre tus archivos
+Resume esta carpeta
+Analiza cada archivo en esta carpeta
+¿Qué puede hacer Gemini con las carpetas en Google Drive?
+Gemini en Workspace puede cometer errores, incluso sobre personas. Más información
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -459,6 +466,53 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+/* MANUAL FICHAJE */
+.manual-form { display: flex; flex-direction: column; gap: 14px; }
+.form-row { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.form-input {
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-input:focus { border-color: var(--ink); }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn-manual {
+  width: 100%;
+  padding: 14px;
+  background: var(--ink);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-manual:hover { background: #333; }
+.btn-manual:disabled { opacity: 0.3; cursor: not-allowed; }
+.manual-tag {
+  display: inline-block;
+  background: #fff3e0;
+  color: #e07020;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
 </style>
 </head>
 <body>
@@ -558,7 +612,37 @@ body {
         Salida
       </button>
     </div>
-    <button class="btn-back" onclick="goStep(1)">← Cambiar empleado</button>
+    <button class="btn-back" onclick="goStep(1)" style="margin-bottom:8px">← Cambiar empleado</button>
+    <button class="btn-back" onclick="goStep(5)" style="color:var(--orange);border-color:var(--orange-bg)">📅 Registrar día pasado</button>
+  </div>
+
+  <!-- STEP 5: FICHAJE MANUAL -->
+  <div id="step-5" class="step">
+    <div class="step-label">Registrar día pasado <span class="manual-tag">MANUAL</span></div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:18px" id="manual-emp-name"></div>
+    <div class="manual-form">
+      <div class="form-row">
+        <div class="form-label">Fecha</div>
+        <input type="date" class="form-input" id="manual-fecha">
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <div class="form-label">Entrada</div>
+          <input type="time" class="form-input" id="manual-entrada" step="1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Salida</div>
+          <input type="time" class="form-input" id="manual-salida" step="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Motivo (opcional)</div>
+        <input type="text" class="form-input" id="manual-motivo" placeholder="Ej: olvide fichar, trabajo remoto...">
+      </div>
+      <div class="error-msg" id="manual-error"></div>
+      <button class="btn-manual" id="btn-manual-submit" onclick="enviarManual()">Registrar</button>
+      <button class="btn-back" onclick="goStep(3)">← Volver</button>
+    </div>
   </div>
 
   <!-- STEP 4: CONFIRMACIÓN -->
@@ -663,6 +747,7 @@ function goStep(n) {
   if(n === 1) { selectedEmp = null; pinValue = ''; refreshPinDots(); }
   if(n === 2) { pinValue = ''; refreshPinDots(); document.getElementById('pin-error').classList.remove('visible'); }
   if(n === 3) loadActionStep();
+  if(n === 5) initManualStep();
 }
 
 // ── API ───────────────────────────────────────────────────
@@ -884,6 +969,80 @@ function saveUrl() {
 // Prellenar URL si existe
 document.getElementById('script-url').value = SCRIPT_URL;
 if(!SCRIPT_URL) document.getElementById('config-details').setAttribute('open','');
+
+// ── MANUAL FICHAJE ───────────────────────────────────────────
+function initManualStep() {
+  if (!selectedEmp) return;
+  document.getElementById('manual-emp-name').textContent = 'Empleado: ' + selectedEmp.nombre;
+  document.getElementById('manual-error').classList.remove('visible');
+  document.getElementById('manual-motivo').value = '';
+  // Default: ayer
+  const ayer = new Date();
+  ayer.setDate(ayer.getDate() - 1);
+  document.getElementById('manual-fecha').value = ayer.toISOString().slice(0,10);
+  document.getElementById('manual-entrada').value = '09:00';
+  document.getElementById('manual-salida').value = '17:00';
+}
+
+async function enviarManual() {
+  const errEl = document.getElementById('manual-error');
+  errEl.classList.remove('visible');
+  const fecha   = document.getElementById('manual-fecha').value;
+  const entrada = document.getElementById('manual-entrada').value;
+  const salida  = document.getElementById('manual-salida').value;
+  const motivo  = document.getElementById('manual-motivo').value.trim();
+
+  if (!fecha || !entrada || !salida) {
+    errEl.textContent = 'Rellena fecha, entrada y salida.';
+    errEl.classList.add('visible');
+    return;
+  }
+  if (entrada >= salida) {
+    errEl.textContent = 'La salida debe ser posterior a la entrada.';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  const btn = document.getElementById('btn-manual-submit');
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
+
+  try {
+    const res = await api({
+      action:     'fichajeManual',
+      emp_id:     selectedEmp.id,
+      pin:        selectedEmp.pin,
+      fecha,
+      entrada:    entrada + ':00',
+      salida:     salida  + ':00',
+      motivo:     motivo || 'Fichaje manual por empleado',
+      dispositivo: navigator.userAgent.includes('Mobile') ? 'movil' : 'escritorio'
+    });
+
+    if (!res.ok) {
+      errEl.textContent = res.error;
+      errEl.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Registrar';
+      return;
+    }
+
+    // Confirmacion
+    document.getElementById('confirm-icon').textContent = '📅';
+    document.getElementById('confirm-title').textContent = 'Fichaje manual registrado';
+    document.getElementById('confirm-msg').textContent = fecha + ' · ' + entrada + ' - ' + salida;
+    document.getElementById('confirm-hours').textContent = res.horas || '';
+    document.getElementById('confirm-ts').textContent = 'Registrado manualmente · queda en Auditoria';
+    goStep(4);
+    btn.disabled = false;
+    btn.textContent = 'Registrar';
+  } catch(e) {
+    errEl.textContent = 'Error de conexion.';
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    btn.textContent = 'Registrar';
+  }
+}
 
 // ── START ─────────────────────────────────────────────────
 captureGeo();
