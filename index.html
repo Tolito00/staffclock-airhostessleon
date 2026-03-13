@@ -172,7 +172,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--ink); min-h
     </div>
     <div class="form-row">
       <label class="form-label">Fecha</label>
-      <input type="date" class="form-input" id="fichaje-fecha">
+      <input type="date" class="form-input" id="fichaje-fecha" onchange="onFechaChange()">
     </div>
     <div id="tramos-container"></div>
     <button class="btn-add-tramo" id="btn-add-tramo" onclick="addTramo()">+ Anadir tramo</button>
@@ -338,17 +338,62 @@ function todayStr() {
   return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
 }
 
-function initFichajeForm() {
+async function initFichajeForm() {
   document.getElementById('fichaje-avatar').textContent = initiales(selectedEmp.nombre);
   document.getElementById('fichaje-nombre').textContent = selectedEmp.nombre;
   document.getElementById('fichaje-fecha').value = todayStr();
   document.getElementById('tramos-container').innerHTML = '';
   tramoCount = 0;
-  addTramo();
   document.getElementById('fichaje-error').classList.remove('visible');
   document.getElementById('btn-add-tramo').style.display = '';
   document.getElementById('btn-submit').disabled = false;
   document.getElementById('btn-submit').textContent = 'Registrar jornada';
+
+  // Cargar tramos existentes si ya hay registro hoy
+  try {
+    const res = await api({action:'getRegistroDia', emp_id:selectedEmp.id, fecha:todayStr()});
+    if (res.ok && res.existe && res.tramos && res.tramos.length > 0) {
+      res.tramos.forEach(t => {
+        addTramo();
+        const n = tramoCount;
+        const eEl = document.getElementById('ent-'+n);
+        const sEl = document.getElementById('sal-'+n);
+        if (eEl) eEl.value = t.entrada;
+        if (sEl) sEl.value = t.salida;
+      });
+      document.getElementById('fichaje-sub') && (document.getElementById('fichaje-sub').textContent = 'Jornada de hoy: ' + res.total + ' - puedes anadir mas tramos');
+      document.getElementById('btn-submit').textContent = 'Actualizar jornada';
+    } else {
+      addTramo();
+    }
+  } catch(e) {
+    addTramo();
+  }
+}
+
+async function onFechaChange() {
+  const fecha = document.getElementById('fichaje-fecha').value;
+  if (!fecha || !selectedEmp) return;
+  document.getElementById('tramos-container').innerHTML = '';
+  tramoCount = 0;
+  document.getElementById('btn-add-tramo').style.display = '';
+  try {
+    const res = await api({action:'getRegistroDia', emp_id:selectedEmp.id, fecha:fecha});
+    if (res.ok && res.existe && res.tramos && res.tramos.length > 0) {
+      res.tramos.forEach(t => {
+        addTramo();
+        const n = tramoCount;
+        const eEl = document.getElementById('ent-'+n);
+        const sEl = document.getElementById('sal-'+n);
+        if (eEl) eEl.value = t.entrada;
+        if (sEl) sEl.value = t.salida;
+      });
+      document.getElementById('btn-submit').textContent = 'Actualizar jornada';
+    } else {
+      addTramo();
+      document.getElementById('btn-submit').textContent = 'Registrar jornada';
+    }
+  } catch(e) { addTramo(); }
 }
 
 function addTramo() {
