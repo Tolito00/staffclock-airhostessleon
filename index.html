@@ -436,14 +436,17 @@ async function enviarFichaje() {
   const fecha = document.getElementById('fichaje-fecha').value;
   if (!fecha) { errEl.textContent='Selecciona una fecha.'; errEl.classList.add('visible'); return; }
 
+  // Recoger todos los tramos del DOM en orden de aparicion
   const tramos = [];
-  for (let i=1; i<=3; i++) {
-    const eEl = document.getElementById('ent-'+i);
-    const sEl = document.getElementById('sal-'+i);
+  document.querySelectorAll('.tramo').forEach((wrap, idx) => {
+    const eEl = wrap.querySelector('input[id^="ent-"]');
+    const sEl = wrap.querySelector('input[id^="sal-"]');
     if (eEl && sEl && eEl.value && sEl.value) {
       tramos.push({entrada: eEl.value+':00', salida: sEl.value+':00'});
     }
-  }
+  });
+  // Ordenar por hora de entrada antes de validar
+  tramos.sort((a,b) => a.entrada < b.entrada ? -1 : 1);
 
   if (tramos.length === 0) {
     errEl.textContent = 'Introduce al menos un tramo con entrada y salida.';
@@ -455,7 +458,7 @@ async function enviarFichaje() {
       errEl.classList.add('visible'); return;
     }
     if (i > 0 && tramos[i].entrada < tramos[i-1].salida) {
-      errEl.textContent = 'El tramo '+(i+1)+' se solapa con el anterior.';
+      errEl.textContent = 'Los tramos se solapan: '+tramos[i-1].salida.slice(0,5)+' y '+tramos[i].entrada.slice(0,5);
       errEl.classList.add('visible'); return;
     }
   }
