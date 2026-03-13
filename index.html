@@ -445,7 +445,7 @@ async function enviarFichaje() {
       tramos.push({entrada: eEl.value+':00', salida: sEl.value+':00'});
     }
   });
-  // Ordenar por hora de entrada antes de validar
+  // Ordenar por hora de entrada
   tramos.sort((a,b) => a.entrada < b.entrada ? -1 : 1);
 
   if (tramos.length === 0) {
@@ -455,10 +455,6 @@ async function enviarFichaje() {
   for (let i=0; i<tramos.length; i++) {
     if (tramos[i].entrada >= tramos[i].salida) {
       errEl.textContent = 'Tramo '+(i+1)+': la salida debe ser posterior a la entrada.';
-      errEl.classList.add('visible'); return;
-    }
-    if (i > 0 && tramos[i].entrada < tramos[i-1].salida) {
-      errEl.textContent = 'Los tramos se solapan: '+tramos[i-1].salida.slice(0,5)+' y '+tramos[i].entrada.slice(0,5);
       errEl.classList.add('visible'); return;
     }
   }
